@@ -3,7 +3,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
 M, m, l, g, b, c, F = 10.0, 2.0, 2.0, 9.8, 0.1, 0.01, 30.0
 def get_derivatives(state, t):
     x, dx, theta, dtheta = state
