@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from scipy.linalg import solve_continuous_are
+from scipy.linalg import solve_continuous_are, solve_lyapunov
 
 M, m, l, g, b, c = 10.0, 2.0, 2.0, 9.8, 0.1, 0.01
 A = np.array([
@@ -143,3 +143,9 @@ axs[2].grid(True); axs[2].legend()
 
 plt.tight_layout(rect=[0, 0, 1, 0.96])
 plt.show()
+
+Wc = solve_lyapunov(A_cl, -B_lqr @ B_lqr.T)
+print("\n--- Аналіз Граміана керованості (діагональні елементи) ---")
+states_names = ["Позиція (x)", "Швидкість (v)", "Кут (theta)", "Кутова швидкість (omega)"]
+for name, val in zip(states_names, np.diag(Wc)):
+    print(f"{name}: {val:.6e}")
