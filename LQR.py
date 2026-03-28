@@ -1,3 +1,4 @@
+# Can stabilize from maximum 35 degrees with 1000 H maximum u
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
@@ -15,8 +16,8 @@ A = np.array([
 
 B_lqr = np.array([[0], [1/M], [0], [-1/(M*l)]])
 max_x = 1.0
-max_theta = np.deg2rad(20)
-max_u = 100.0
+max_theta = np.deg2rad(60)
+max_u = 1000.0
 
 Q = np.diag([1/max_x**2, 0.1, 1/max_theta**2, 0.1])
 R = np.array([[1/max_u**2]])
@@ -117,7 +118,7 @@ def run_simulation(initial_theta_deg, animate=True):
     return data
 
 print("Симуляція 5 градусів...")
-data5 = run_simulation(5, animate=True)
+data5 = run_simulation(35, animate=True)
 
 print("Симуляція 15 градусів...")
 data15 = run_simulation(15, animate=True)
