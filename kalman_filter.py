@@ -6,7 +6,6 @@ import matplotlib.patches as patches
 from scipy.linalg import solve_discrete_are
 from scipy.signal import cont2discrete
 
-# --- ПАРАМЕТРИ ---
 M, m, l, g, b, c = 10.0, 2.0, 2.0, 9.8, 0.1, 0.01
 dt = 0.01
 start_angle_deg = 25
@@ -31,22 +30,22 @@ K_lqr = np.linalg.inv(R_lqr + Bd.T @ P_dare @ Bd) @ Bd.T @ P_dare @ Ad
 eigs = np.abs(np.linalg.eigvals(Ad - Bd @ K_lqr))
 print(f"Власні значення: {eigs.round(4)}")
 assert np.all(eigs < 1.0), "LQR не стабілізує систему!"
-
-# --- КАЛМАН ---
+# при дуже малих помилках сенсора калман повністю повторює показники лічильника
 SENSOR_NOISE_X     = 0.5
 SENSOR_NOISE_THETA = 0.05
 
-R_kf = np.diag([SENSOR_NOISE_X**2, SENSOR_NOISE_THETA * 5])
-Q_kf = np.diag([1e-4, 1e-4, 1e-4, 1e-4])
+R_kf = np.diag([SENSOR_NOISE_X**2, SENSOR_NOISE_THETA**2])
+# при малих значеннях слабко реагує, бо більше довіряє системі, а при великому - реагує на зміни дуже різко
+Q_kf = np.diag([1e-4, 1e-4, 1e-6, 1e-6])
 
 def kalman_step(y_noisy, u_prev, x_hat_old, P_old):
-    x_pred = Ad @ x_hat_old + Bd * u_prev
+    x_pred = Ad @ x_hat_old + Bd * u_prev 
     P_pred = Ad @ P_old @ Ad.T + Q_kf
     S = Cd @ P_pred @ Cd.T + R_kf
     K_gain = P_pred @ Cd.T @ np.linalg.inv(S)
     x_hat_new = x_pred + K_gain @ (y_noisy - Cd @ x_pred)
     P_new = (np.eye(4) - K_gain @ Cd) @ P_pred
-    return x_hat_new, P_new
+    return x_hat_new, P_new 
 
 def get_derivatives(state, F):
     x, dx, theta, dtheta = state.flatten()
@@ -61,7 +60,6 @@ def get_derivatives(state, F):
     accels = np.linalg.solve(A_mat, B_mat)
     return np.array([[dx], [accels[0]], [dtheta], [accels[1]]])
 
-# --- СИМУЛЯЦІЯ ---
 def run_simulation(initial_deg):
     steps = 1000
     S_real = np.array([[0.0], [0.0], [np.deg2rad(initial_deg)], [0.0]])
@@ -101,7 +99,6 @@ def run_simulation(initial_deg):
 
     return history
 
-# --- АНІМАЦІЯ ---
 def animate_results(data):
     plt.ion()
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -134,13 +131,11 @@ def animate_results(data):
     plt.ioff()
     plt.close(fig)
 
-# --- ГРАФІКИ ---
 def plot_results(data):
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 9), sharex=True)
     fig.suptitle("Kalman Filter + Discrete LQR", fontsize=14, fontweight='bold')
     t = data["t"]
 
-    # Позиція
     ax1.plot(t, data["x_noisy"], color='tomato',    alpha=0.35, lw=0.8,
              label='Датчик (зашумлений)')
     ax1.plot(t, data["x_real"], color='limegreen',  lw=2,
@@ -151,7 +146,6 @@ def plot_results(data):
     ax1.legend()
     ax1.grid(alpha=0.3)
 
-    # Кут
     ax2.plot(t, data["th_noisy"], color='tomato',    alpha=0.35, lw=0.8,
              label='Датчик (зашумлений)')
     ax2.plot(t, data["th_real"], color='limegreen',  lw=2,
@@ -166,7 +160,35 @@ def plot_results(data):
     plt.tight_layout()
     plt.show()
 
-# --- ЗАПУСК ---
+def calculate_rmse(data):
+    x_real = np.array(data["x_real"])
+    x_est  = np.array(data["x_est"])
+    x_noisy = np.array(data["x_noisy"])
+    
+    th_real = np.array(data["th_real"])
+    th_est  = np.array(data["th_est"])
+    th_noisy = np.array(data["th_noisy"])
+
+    rmse_x_kf    = np.sqrt(np.mean((x_real - x_est)**2))
+    rmse_x_raw   = np.sqrt(np.mean((x_real - x_noisy)**2))
+    
+    rmse_th_kf   = np.sqrt(np.mean((th_real - th_est)**2))
+    rmse_th_raw  = np.sqrt(np.mean((th_real - th_noisy)**2))
+
+    print("-" * 30)
+    print(f"{'Метрика':<15} | {'Сирий датчик':<15} | {'Фільтр Калмана':<15}")
+    print("-" * 30)
+    print(f"{'RMSE x (м)':<15} | {rmse_x_raw:<15.4f} | {rmse_x_kf:<15.4f}")
+    print(f"{'RMSE θ (°)':<15} | {rmse_th_raw:<15.4f} | {rmse_th_kf:<15.4f}")
+    print("-" * 30)
+    
+    improvement_x = (1 - rmse_x_kf/rmse_x_raw) * 100
+    improvement_th = (1 - rmse_th_kf/rmse_th_raw) * 100
+    print(f"Покращення точності x: {improvement_x:.1f}%")
+    print(f"Покращення точності θ: {improvement_th:.1f}%")
+    print("-" * 30)
+
 data = run_simulation(start_angle_deg)
 animate_results(data)
+calculate_rmse(data)
 plot_results(data)
