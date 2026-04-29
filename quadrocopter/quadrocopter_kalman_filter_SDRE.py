@@ -13,6 +13,7 @@ T_END = 10.0
 
 SENSOR_NOISE_POS = 0.15
 SENSOR_NOISE_OMGA = 0.03
+SENSOR_NOISE_ACC = 0.8
 IDX = [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12]
 
 def drone_dynamics(x, u):
@@ -78,10 +79,12 @@ x_hat = x_real[IDX].copy()
 P_kf = np.eye(12) * 0.1
 Q_kf = np.eye(12) * 1e-4
 
-Cd = np.zeros((6, 12))
+Cd = np.zeros((9, 12))
 Cd[0:3, 0:3] = np.eye(3)    
-Cd[3:6, 9:12] = np.eye(3)   
-R_kf = np.diag([SENSOR_NOISE_POS**2]*3 + [SENSOR_NOISE_OMGA**2]*3)
+Cd[3:6, 9:12] = np.eye(3)
+Cd[6, 7] = 2 * G  
+Cd[7, 6] = -2 * G   
+R_kf = np.diag([SENSOR_NOISE_POS**2]*3 + [SENSOR_NOISE_OMGA**2]*3 + [SENSOR_NOISE_ACC**2]*3)
 A_f, B_f = get_linearized_matrices(x_real, u_hover)
 Ad_init, Bd_init = discretize_system(A_f[np.ix_(IDX, IDX)], B_f[IDX, :], DT)
 P_init = scipy.linalg.solve_discrete_are(Ad_init, Bd_init, Q_lqr, R_lqr)
@@ -95,7 +98,8 @@ print(f"Політ (Pure SDRE). Ціль: {x_target[0:3]}...")
 
 for t in np.arange(0, T_END, DT):
     history.append(x_real.copy())
-    z_noisy = (Cd @ x_real[IDX]) + np.random.normal(0, [SENSOR_NOISE_POS]*3 + [SENSOR_NOISE_OMGA]*3)
+    noise = np.random.normal(0, [SENSOR_NOISE_POS]*3 + [SENSOR_NOISE_OMGA]*3 + [SENSOR_NOISE_ACC]*3)
+    z_noisy = (Cd @ x_real[IDX]) + noise
     x_hat_full = np.zeros(13, dtype=np.float64)
     x_hat_full[IDX] = x_hat
     norm_sq = np.sum(x_hat[6:9]**2)
